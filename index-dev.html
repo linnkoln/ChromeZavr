@@ -1,8 +1,13 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     DEV-СБОРКА (index-dev.html)
+     Та же страница, что loading-page.html (PROD), но с включёнными
+     функциями разработчика: enableDevFeatures() + чит-панель.
+     ============================================================ -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Загрузка</title>
+<title>Загрузка [DEV]</title>
 <style>
   body {
     margin: 0;
@@ -39,7 +44,6 @@
     background: #2563eb;
     transition: width 0.3s linear;
   }
-  /* Сообщение об успешной загрузке — на месте прогресс-бара */
   #done-msg {
     margin-top: 20px;
     color: #16a34a;
@@ -51,7 +55,6 @@
     color: #555;
     display: none;
   }
-  /* PLACEHOLDER ИГРЫ: появится после пробела/клика */
   #game-placeholder {
     margin: 24px auto 0;
     width: 480px;
@@ -67,9 +70,58 @@
     background: #eff6ff;
   }
   #reload-btn { display: none; background: #16a34a; }
+
+  /* --- Чит-панель разработчика --- */
+  #dev-panel {
+    position: fixed;
+    top: 12px; right: 12px;
+    background: #111827;
+    color: #f9fafb;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    text-align: left;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    z-index: 1000;
+    min-width: 210px;
+  }
+  #dev-panel h4 { margin: 0 0 8px; font-size: 13px; color: #fbbf24; }
+  #dev-panel button {
+    font-size: 12px;
+    padding: 6px 10px;
+    margin: 3px 2px;
+    background: #374151;
+    border-radius: 6px;
+  }
+  #dev-panel button.on { background: #16a34a; }
+  #dev-panel .badge {
+    display: inline-block;
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
 </style>
 </head>
 <body>
+  <div id="dev-panel">
+    <h4>DEV-панель <span class="badge">DEV</span></h4>
+    <button id="dev-god">GodMode: OFF</button><br>
+    <button id="dev-skip">Пропустить загрузку</button><br>
+    <button id="dev-restart">Рестарт игры</button><br>
+    <label>Скорость игры:
+      <select id="dev-speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+    </label>
+  </div>
+
   <div class="box">
     <button id="start-btn">Начать загрузку</button>
     <div id="progress-wrap"><div id="progress-bar"></div></div>
@@ -79,8 +131,20 @@
     <div id="game-placeholder">🎮 PLACEHOLDER ИГРЫ<br>(здесь будет игра)</div>
   </div>
 
+<script>
+  // Хук для DEV: skipLoading() мгновенно завершает загрузку
+  window.__czFinishLoadingNow = function () {
+    if (!window.__czLoadingDone) {
+      window.__czLoadingDone = true;
+      finishLoading();
+    }
+  };
+</script>
 <script src="engine.js"></script>
 <script>
+  // Включаем функции разработчика — в PROD этого вызова нет
+  var dev = enableDevFeatures();
+
   var btn = document.getElementById('start-btn');
   var wrap = document.getElementById('progress-wrap');
   var bar = document.getElementById('progress-bar');
@@ -90,73 +154,56 @@
   var reloadBtn = document.getElementById('reload-btn');
   var DURATION = 30000; // 30 секунд
 
-  var loaded = false;   // загрузка завершилась
+  var loaded = false;
   var gameStarted = false;
 
-  // === ТОЧКА РАСШИРЕНИЯ ЗАГРУЗЧИКА (placeholder) ===
-  // Сейчас: по завершении ожидания ничего не происходит (заглушка).
-  // В будущем здесь будет реальное действие или переход на другую страницу.
   function onLoadingFinished() {
-    // TODO: заменить на реальное действие / переход, например:
-    // window.location.href = '/next-page.html';
+    // TODO: реальное действие / переход
   }
 
-  // === ЗАГРУЗКА — PLACEHOLDER РЕАЛЬНОЙ ЗАГРУЗКИ ===
-  // startLoading() имитирует процесс загрузки таймером на DURATION мс.
-  // ЗАМЕНИТЬ тело этой функции на реальную логику загрузки (fetch ресурсов,
-  // загрузка ассетов игры, обращение к API и т.п.). Контракт:
-  //   1) сообщать прогресс вызовом setProgress(0..100);
-  //   2) по завершении вызвать finishLoading().
   function startLoading() {
     var start = Date.now();
     var timer = setInterval(function () {
+      if (window.__czLoadingDone) { clearInterval(timer); return; }
       var pct = Math.min(100, (Date.now() - start) / DURATION * 100);
       setProgress(pct);
-      if (pct >= 100) {
-        clearInterval(timer);
-        finishLoading();
-      }
+      if (pct >= 100) { clearInterval(timer); finishLoading(); }
     }, 100);
   }
 
-  function setProgress(pct) {
-    bar.style.width = pct + '%';
-  }
+  function setProgress(pct) { bar.style.width = pct + '%'; }
 
   function finishLoading() {
     loaded = true;
-    wrap.style.display = 'none'; // прогресс-бар убирается
+    wrap.style.display = 'none';
     if (gameStarted) {
-      reloadBtn.style.display = 'inline-block'; // игра начата -> кнопка на месте бара
+      reloadBtn.style.display = 'inline-block';
     } else {
-      doneMsg.style.display = 'block';          // игра не начата -> сообщение
-      onLoadingFinished();                      // вызов точки расширения
-      // через 2 секунды — автоперезагрузка
+      doneMsg.style.display = 'block';
+      onLoadingFinished();
       setTimeout(function () { location.reload(); }, 2000);
     }
   }
 
   btn.addEventListener('click', function () {
-    btn.style.display = 'none';   // кнопка старта исчезает
+    btn.style.display = 'none';
     wrap.style.display = 'block';
     hint.style.display = 'block';
-    startLoading();               // запуск placeholder-загрузки
+    startLoading();
   });
 
-  // Запуск игры: пробел или клик по пустой части экрана (можно и во время загрузки)
   function tryStartGame(e) {
-    if (e.target.closest('button')) return; // клики по кнопкам игру не запускают
+    if (e.target.closest('button')) return;
+    if (e.target.closest('#dev-panel')) return;
     if (gameStarted) return;
     gameStarted = true;
     hint.style.display = 'none';
     game.style.display = 'flex';
-    ChromeZavrGame.start();       // запуск игры в placeholder
+    ChromeZavrGame.start();
     if (loaded) {
-      // загрузка уже завершилась: бар заменён сообщением — меняем его на кнопку
       doneMsg.style.display = 'none';
       reloadBtn.style.display = 'inline-block';
     }
-    // если загрузка ещё идёт — кнопка появится в finishLoading()
   }
 
   document.addEventListener('keydown', function (e) {
@@ -173,6 +220,23 @@
 
   reloadBtn.addEventListener('click', function () {
     location.reload();
+  });
+
+  // --- Чит-панель ---
+  var godBtn = document.getElementById('dev-god');
+  godBtn.addEventListener('click', function () {
+    var on = dev.toggleGodMode();
+    godBtn.textContent = 'GodMode: ' + (on ? 'ON' : 'OFF');
+    godBtn.classList.toggle('on', on);
+  });
+  document.getElementById('dev-skip').addEventListener('click', function () {
+    dev.skipLoading();
+  });
+  document.getElementById('dev-restart').addEventListener('click', function () {
+    dev.restart();
+  });
+  document.getElementById('dev-speed').addEventListener('change', function () {
+    dev.setSpeedMultiplier(parseFloat(this.value));
   });
 </script>
 </body>
