@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Загрузка</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+  }
+  .box { text-align: center; }
+  button {
+    font-size: 18px;
+    padding: 14px 32px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:disabled { background: #93c5fd; cursor: default; }
+  #progress-wrap {
+    width: 300px;
+    height: 12px;
+    background: #ddd;
+    border-radius: 6px;
+    margin: 20px auto 0;
+    overflow: hidden;
+    display: none;
+  }
+  #progress-bar {
+    width: 0%;
+    height: 100%;
+    background: #2563eb;
+    transition: width 0.3s linear;
+  }
+  /* Сообщение об успешной загрузке — на месте прогресс-бара */
+  #done-msg {
+    margin-top: 20px;
+    color: #16a34a;
+    font-weight: 600;
+    display: none;
+  }
+  #hint {
+    margin-top: 16px;
+    color: #555;
+    display: none;
+  }
+  /* PLACEHOLDER ИГРЫ: появится после пробела/клика */
+  #game-placeholder {
+    margin: 24px auto 0;
+    width: 480px;
+    max-width: 90vw;
+    height: 240px;
+    border: 2px dashed #2563eb;
+    border-radius: 8px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+    font-size: 16px;
+    background: #eff6ff;
+  }
+  #reload-btn { display: none; background: #16a34a; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <button id="start-btn">Начать загрузку</button>
+    <div id="progress-wrap"><div id="progress-bar"></div></div>
+    <div id="done-msg">✅ Загрузка завершена!</div>
+    <div id="hint">Нажмите пробел или кнопку мышки, чтобы начать игру</div>
+    <button id="reload-btn">Загрузка завершена — перезагрузить</button>
+    <div id="game-placeholder">🎮 PLACEHOLDER ИГРЫ<br>(здесь будет игра)</div>
+  </div>
+
+<script>
+  var btn = document.getElementById('start-btn');
+  var wrap = document.getElementById('progress-wrap');
+  var bar = document.getElementById('progress-bar');
+  var doneMsg = document.getElementById('done-msg');
+  var hint = document.getElementById('hint');
+  var game = document.getElementById('game-placeholder');
+  var reloadBtn = document.getElementById('reload-btn');
+  var DURATION = 30000; // 30 секунд
+
+  var loaded = false;   // загрузка завершилась
+  var gameStarted = false;
+
+  // === ТОЧКА РАСШИРЕНИЯ ЗАГРУЗЧИКА (placeholder) ===
+  // Сейчас: по завершении ожидания ничего не происходит (заглушка).
+  // В будущем здесь будет реальное действие или переход на другую страницу.
+  function onLoadingFinished() {
+    // TODO: заменить на реальное действие / переход, например:
+    // window.location.href = '/next-page.html';
+  }
+
+  // === ЗАГРУЗКА — PLACEHOLDER РЕАЛЬНОЙ ЗАГРУЗКИ ===
+  // startLoading() имитирует процесс загрузки таймером на DURATION мс.
+  // ЗАМЕНИТЬ тело этой функции на реальную логику загрузки (fetch ресурсов,
+  // загрузка ассетов игры, обращение к API и т.п.). Контракт:
+  //   1) сообщать прогресс вызовом setProgress(0..100);
+  //   2) по завершении вызвать finishLoading().
+  function startLoading() {
+    var start = Date.now();
+    var timer = setInterval(function () {
+      var pct = Math.min(100, (Date.now() - start) / DURATION * 100);
+      setProgress(pct);
+      if (pct >= 100) {
+        clearInterval(timer);
+        finishLoading();
+      }
+    }, 100);
+  }
+
+  function setProgress(pct) {
+    bar.style.width = pct + '%';
+  }
+
+  function finishLoading() {
+    loaded = true;
+    wrap.style.display = 'none'; // прогресс-бар убирается
+    if (gameStarted) {
+      reloadBtn.style.display = 'inline-block'; // игра начата -> кнопка на месте бара
+    } else {
+      doneMsg.style.display = 'block';          // игра не начата -> сообщение
+      onLoadingFinished();                      // вызов точки расширения
+    }
+  }
+
+  btn.addEventListener('click', function () {
+    btn.style.display = 'none';   // кнопка старта исчезает
+    wrap.style.display = 'block';
+    hint.style.display = 'block';
+    startLoading();               // запуск placeholder-загрузки
+  });
+
+  // Запуск игры: пробел или клик по пустой части экрана (можно и во время загрузки)
+  function tryStartGame(e) {
+    if (e.target.closest('button')) return; // клики по кнопкам игру не запускают
+    if (gameStarted) return;
+    gameStarted = true;
+    hint.style.display = 'none';
+    game.style.display = 'flex';
+    if (loaded) {
+      // загрузка уже завершилась: бар заменён сообщением — меняем его на кнопку
+      doneMsg.style.display = 'none';
+      reloadBtn.style.display = 'inline-block';
+    }
+    // если загрузка ещё идёт — кнопка появится в finishLoading()
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      tryStartGame(e);
+    }
+  });
+  document.addEventListener('click', tryStartGame);
+
+  reloadBtn.addEventListener('click', function () {
+    location.reload();
+  });
+</script>
+</body>
+</html>
