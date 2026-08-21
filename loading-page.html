@@ -130,6 +130,8 @@
     } else {
       doneMsg.style.display = 'block';          // игра не начата -> сообщение
       onLoadingFinished();                      // вызов точки расширения
+      // через 2 секунды — автоперезагрузка
+      setTimeout(function () { location.reload(); }, 2000);
     }
   }
 
